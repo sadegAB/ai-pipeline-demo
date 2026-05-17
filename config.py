@@ -1,3 +1,4 @@
+from typing import Optional, List, Dict, Any
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):

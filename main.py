@@ -1,36 +1,25 @@
 from fastapi import FastAPI
-from config import settings
-from middleware.cors import add_cors
-from routers import health, customers, suppliers, products, warehouses, inventory, stock_movements, purchase_orders, sales_orders, invoices, payments, reports
+from fastapi.middleware.cors import CORSMiddleware
+from middleware.cors import get_cors_config
+from routers import health, hospitals, departments, doctors, appointments, admin_hospitals, admin_departments, admin_doctors, admin_appointments
 
-app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
+app = FastAPI(title="Healthcare Booking API", version="1.0.0")
 
-add_cors(app)
+# CORS
+cors_config = get_cors_config()
+app.add_middleware(CORSMiddleware, **cors_config)
 
-# ── Routers ──
+# Routers
 app.include_router(health.router)
-app.include_router(customers.router)
-app.include_router(suppliers.router)
-app.include_router(products.router)
-app.include_router(warehouses.router)
-app.include_router(inventory.router)
-app.include_router(stock_movements.router)
-app.include_router(purchase_orders.router)
-app.include_router(sales_orders.router)
-app.include_router(invoices.router)
-app.include_router(payments.router)
-app.include_router(reports.router)
+app.include_router(hospitals.router)
+app.include_router(departments.router)
+app.include_router(doctors.router)
+app.include_router(appointments.router)
+app.include_router(admin_hospitals.router)
+app.include_router(admin_departments.router)
+app.include_router(admin_doctors.router)
+app.include_router(admin_appointments.router)
 
-# ── Add new routers here ──
-# from routers import books
-# app.include_router(books.router)
-
-
-@app.get("/", tags=["Root"])
+@app.get("/")
 def root():
-    return {"message": f"Welcome to {settings.app_name}", "docs": "/docs"}
+    return {"message": "Healthcare Booking API"}

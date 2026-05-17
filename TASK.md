@@ -1,161 +1,135 @@
-# Task: Build Mini ERP API From Zero on FastAPI Template
+# Healthcare Booking API — Backend
 
-You are working inside a clean FastAPI template.
+## Goal
+Build a complete REST API for a healthcare booking system where users can browse hospitals, departments, doctors, and book appointments.
 
-Build a new Mini ERP / Operations API from zero using the existing template conventions.
+## Scope
+- **Backend only** — no frontend.
+- FastAPI with the existing JSON file‑based storage (core/storage.py).
+- All business logic must be fully implemented.
+- No authentication for now.
 
-Do not reuse or reference the previous books CRUD test.
-Do not assume books.py exists.
-Do not create a new framework or project structure.
+---
 
-Use the existing FastAPI template structure:
-- schemas/
-- routers/
-- main.py
-- core/storage.py
-- core/utils.py
+## Data Models
+All models must be defined as Pydantic schemas (request/response shapes).  
+IDs are strings; timestamps are ISO strings.
 
-No authentication is required.
+### Hospital
+- id, name, slug, description, address, phone, email, image_url, emergency_available (bool)
+- Working hours: list of WorkingHour objects
+- Departments: list of department IDs
+- Doctors: list of doctor IDs
 
-Follow HANDOFF.md and AGENT_INSTRUCTIONS.md exactly.
+### WorkingHour
+- day_of_week (str, e.g. "saturday")
+- is_open (bool)
+- open_time (str, "HH:MM")
+- close_time (str, "HH:MM")
 
-Use:
-- load_db()
-- save_db()
-- generate_id()
-- now_iso()
-- not_found()
+### Department
+- id, name, slug, description, icon_url, hospital_id
 
-Do not use SQLAlchemy.
-Do not install new packages.
-Use existing JSON db.json storage.
+### Doctor
+- id, full_name, slug, photo_url, specialization, department_id, hospital_id
+- experience_years (int), qualifications (str), bio (str)
+- consultation_fee (float), languages (list[str]), rating (float), gender (str)
+- working_hours: list of DoctorWorkingHour
+- appointment_duration_minutes (int, default 30)
 
-## Required System
+### DoctorWorkingHour
+- day_of_week, is_available (bool), start_time, end_time, break_start_time, break_end_time
 
-Build APIs for these business areas:
+### Appointment
+- id, booking_code (str, auto‑generated, e.g. "APT-XXXXX")
+- hospital_id, department_id, doctor_id
+- patient_name, patient_phone, patient_email (optional), patient_age, patient_gender, reason_for_visit
+- appointment_date (YYYY-MM-DD), appointment_time (HH:MM)
+- status: "pending" | "confirmed" | "cancelled" | "completed"
+- created_at (ISO string)
 
-1. Customers
-2. Suppliers
-3. Products
-4. Warehouses
-5. Inventory
-6. Stock Movements
-7. Purchase Orders
-8. Sales Orders
-9. Invoices
-10. Payments
-11. Reports
+---
 
-## Required DB Keys
+## API Endpoints
 
-- customers
-- suppliers
-- products
-- warehouses
-- inventory_items
-- stock_movements
-- purchase_orders
-- sales_orders
-- invoices
-- payments
+### Public
+- `GET /hospitals` — list hospitals (filter by name, emergency_available)
+- `GET /hospitals/{id}` — hospital details including working hours, departments, doctors
+- `GET /hospitals/{id}/departments` — departments for a hospital
+- `GET /hospitals/{id}/doctors` — doctors for a hospital
+- `GET /departments` — list departments (filter by hospital_id, name)
+- `GET /departments/{id}` — department details
+- `GET /doctors` — list doctors (filter by hospital_id, department_id, specialization, gender, language, rating, consultation_fee range, available_today)
+- `GET /doctors/{id}` — doctor details with full schedule
+- `GET /doctors/{id}/availability?date=YYYY-MM-DD` — computed available time slots for a given date
+- `POST /appointments` — book an appointment
+- `GET /appointments/{booking_code}` — retrieve a booking
 
-## High-Level Rules
+### Admin
+- `POST /admin/hospitals` — create hospital
+- `PATCH /admin/hospitals/{id}` — update hospital
+- `DELETE /admin/hospitals/{id}` — delete hospital
+- `POST /admin/departments` — create department
+- `PATCH /admin/departments/{id}` — update department
+- `DELETE /admin/departments/{id}` — delete department
+- `POST /admin/doctors` — create doctor
+- `PATCH /admin/doctors/{id}` — update doctor
+- `DELETE /admin/doctors/{id}` — delete doctor
+- `GET /admin/appointments` — list all appointments (filter by status, date, hospital_id, doctor_id)
+- `PATCH /admin/appointments/{id}/status` — update appointment status
 
-Customers:
-- CRUD.
-- name required.
-- email unique if provided.
+---
 
-Suppliers:
-- CRUD.
-- name required.
-- email unique if provided.
+## Business Logic
+- Available slots for `GET /doctors/{id}/availability?date=` must be computed from:
+  - Doctor's working hours for that day of week
+  - Doctor's appointment_duration_minutes
+  - Existing appointments for that doctor on that date
+  - Break times (no slots during break)
+  - Hospital working hours (doctor cannot work when hospital is closed)
+  - Return a list of `{"time": "HH:MM", "available": true/false}` slots
+- `POST /appointments` must validate:
+  - Doctor exists and works at the given hospital/department
+  - Hospital is open on the requested date
+  - Doctor is available on that day
+  - The requested time slot is available (not already booked, not during break)
+  - Patient info is complete
+  - Generate a unique booking_code
+  - Return the full appointment object with status "pending"
+- Appointment cancellation sets status to "cancelled" (cannot cancel if already "completed")
+- `available_today` filter on doctors: only doctors whose working_hours include today and have at least one free slot left.
 
-Products:
-- CRUD.
-- fields: name, sku, description, unit_price, reorder_level.
-- sku unique.
-- unit_price >= 0.
-- reorder_level >= 0.
+---
 
-Warehouses:
-- CRUD.
-- name required and unique.
+## Seed Data
+Create a `seed.py` script (in the project root) that populates db.json with:
+- 3 hospitals with different working schedules (e.g. one closed Friday, one open all week, one with shorter hours)
+- 10 departments distributed across hospitals
+- 20 doctors with varied specializations, schedules, and fees
+- 5 sample appointments with different statuses
+The seed script must be runnable: `python3 seed.py`
 
-Inventory:
-- inventory item links product_id + warehouse_id + quantity.
-- one inventory item per product_id + warehouse_id.
-- quantity cannot be negative.
-- low-stock means quantity <= product.reorder_level.
+---
 
-Stock Movements:
-- add stock.
-- remove stock.
-- adjust stock.
-- transfer stock between warehouses.
-- every stock change creates a movement record.
-- stock cannot go negative.
+## Technical Constraints
+- Use the existing template: FastAPI + JSON file storage (core/storage.py).
+- The app must start with `python3 -m uvicorn main:app`.
+- All generated code must compile (`python3 -m compileall .`).
 
-Purchase Orders:
-- supplier_id required.
-- items include product_id, quantity, unit_cost, line_total.
-- starts as draft.
-- approve draft.
-- receive approved PO into warehouse and increase inventory.
-- cannot receive twice.
-- cannot cancel after received.
-
-Sales Orders:
-- customer_id required.
-- warehouse_id required.
-- items include product_id, quantity, unit_price, line_total.
-- starts as draft.
-- confirm validates stock and deducts inventory.
-- cancel draft marks cancelled.
-- cancel confirmed restores inventory.
-- cannot confirm/cancel invalid statuses.
-
-Invoices:
-- create from confirmed sales order.
-- one invoice per sales order.
-- unpaid, partially_paid, paid.
-- tracks total_amount, paid_amount, balance_due.
-
-Payments:
-- pay invoice.
-- amount > 0.
-- cannot exceed invoice balance.
-- updates invoice paid_amount, balance_due, status.
-
-Reports:
-- low-stock report.
-- inventory by warehouse.
-- unpaid invoices.
-- customer balance.
-- product sales summary.
-
-## Important Planning Rule
-
-The Manager must not plan the whole project as one giant task queue.
-
-Split the project into high-level phases first.
-
-Then each phase should be planned into file-level tasks only when that phase starts.
-
+---
 
 ## Planning Rules
-
 - Do not create environment setup phases.
 - Do not create configuration setup phases.
 - The FastAPI template already exists and already runs.
 - Every phase must directly produce application code or validation.
 - Good phase examples:
-  - Core entity schemas
-  - Core CRUD routers
-  - Inventory and stock movement logic
-  - Purchase and sales order logic
-  - Invoice and payment logic
-  - Reports
+  - Core entity schemas (Hospitals, Departments, Doctors, Appointments)
+  - Hospital and department CRUD routers
+  - Doctor management and availability
+  - Appointment booking with validation
+  - Admin endpoints
+  - Seed data script
   - Router registration and compile validation
 - Bad phase examples:
   - Initial setup
@@ -163,20 +137,22 @@ Then each phase should be planned into file-level tasks only when that phase sta
   - Configure project
 
 ## Dependency Rules
-
-- You may install new packages if needed. If you add a new package, also add it to `requirements.txt` with the exact package name.
 - Do not use EmailStr unless email-validator is already in requirements.txt.
 - Use Optional[str] for email fields by default.
+- You may install new packages if needed. If you add a new package, also add it to requirements.txt with the exact package name.
 
 ## Test Rules
-
 - Do not create test files unless explicitly requested.
 - For validation, use compile check:
   python3 -m compileall .
 
 ## Schema Rules
-
 - Schemas define request/response shape and basic field constraints only.
 - Do not read or write db.json inside schemas.
 - Do not call load_db(), save_db(), or generate_id() inside schemas.
-- Business rules such as unique sku, unique email, stock availability, order status transitions, and payment balance checks belong in routers or helper functions.
+- Business rules (slot computation, booking validation, status transitions) belong in routers or helper functions.
+- If a router imports a class from a schema, ensure the class actually exists in that schema file.
+
+## Phase Planning
+- Phase 0: All core entity schemas (Hospital, Department, Doctor, Appointment and their sub‑models)
+- Later phases: CRUD routers, business logic, admin endpoints, seed data, final registration and compile
