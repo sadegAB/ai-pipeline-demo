@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from config import settings
 from middleware.cors import add_cors
-from routers import health
+from routers import health, books
 
 app = FastAPI(
     title=settings.app_name,
@@ -14,11 +14,7 @@ add_cors(app)
 
 # ── Routers ──
 app.include_router(health.router)
-
-# ── Add new routers here ──
-# from routers import books
-# app.include_router(books.router)
-
+app.include_router(books.router)
 
 @app.get("/", tags=["Root"])
 def root():
