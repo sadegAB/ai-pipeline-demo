@@ -246,10 +246,10 @@ def _validate_imports(target_file: str, file_content: str) -> list[str]:
                 for _ in range(node.level - 1):
                     target_dir = target_dir.parent
                 parts = module_path.split('.') if module_path else []
-                file_path = target_dir / ('/'.join(parts) + '.py')
+                file_path = target_dir / ('/'.join(parts) + '.tsx')
             else:
                 parts = module_path.split('.')
-                file_path = Path('/'.join(parts) + '.py')
+                file_path = Path('/'.join(parts) + '.tsx')
             
             if not file_path.exists():
                 # Try .tsx for frontend
@@ -394,7 +394,7 @@ class AIManager:
                     "otherwise use type='code' for implementation.\n\n"
                     "Example:\n"
                     '{"tasks": [{"id": "phase_0_task_0", "title": "Create customer schema", '
-                    '"type": "code", "target_file": "schemas/customers.py", '
+                    '"type": "code", "target_file": "schemas/customers.tsx", '
                     '"instructions": "Create CustomerCreate and Customer schemas according to TASK.md."}]}'
                 ),
             },
