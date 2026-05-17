@@ -1,5 +1,5 @@
 export { default as client } from './client'
-
-// Add feature API files here as you create them
-// export * from './books'
-// export * from './members'
+export * from './hospitals'
+export * from './departments'
+export * from './doctors'
+export * from './appointments'
